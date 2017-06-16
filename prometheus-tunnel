@@ -1,0 +1,27 @@
+#!/bin/bash
+set -euo pipefail
+
+if [[ "$#" -lt 2 ]]; then
+  echo "$0 host:path port [key=value...]"
+  exit 1
+fi
+
+IFS=":"
+parts=($1); shift
+host="${parts[0]}"
+rpath="${parts[1]}"
+port=$1; shift
+labels=$(echo "$@"|sed 's/ /\n    /g;s/^/    /;s/=/: /g')
+
+cat <<EOF | ssh "-R0:127.0.0.1:$port" "$host"
+ppid=\$(ps -o ppid= -p \$$)
+addr=\$(ss -4lntp|grep pid=\$ppid,|awk '{print \$4}')
+cat <<EOC > $rpath
+- targets:
+    - \$addr
+  labels:
+$labels
+EOC
+echo Wrote "$rpath"
+sleep infinity
+EOF
